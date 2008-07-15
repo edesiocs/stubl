@@ -1,0 +1,157 @@
+Stubl: an IPv6 Stateless Tunnel Broker for LANs
+
+-- Overview --
+
+Stubl is a transition mechanism for providing a basic level of IPv6
+connectivity to individual nodes on a private network.  All that's required
+is a single Linux server with an IPv6 /64 subnet routed to it.
+
+The Stubl server consists of a Linux kernel module (stubl.ko) for handling the
+tunnel packets, and an HTTP server (stubl_http.py) for calculating clients'
+addresses and providing tunnel setup instructions.
+
+The main advantage of Stubl is that it allows a user on the network, running
+any major OS, to get a working IPv6 connection with nothing but a few lines
+of shell commands.  This makes it very easy for developers to start
+getting familiar with the protocol, with minimal administrative overhead.
+
+
+-- How it works --
+
+Stubl can be thought of as "6to4 for LANs".  A client's address is generated
+by concatenating the Stubl server's 64-bit prefix with the client's private
+IPv4 address.  For example, with a prefix of 2001:db8:0:1234, and a client
+IP address of 192.168.2.9, the following IPv6 address is generated:
+
+  2001:db8:0:1234:c0a8:0209::
+
+Then, the suffix of the address is encrypted with a 64-bit block cipher, using
+a key known only to the server.  For example, the above address might encrypt
+to:
+
+  2001:db8:0:1234:3d06:b9a0:cb97:27a4
+
+The stubl_http.py daemon handles the address generation, and provides the
+user with shell commands which create a point-to-point tunnel to the server,
+add the generated IPv6 address to the interface, and assign a default route
+through that interface.
+
+On the server side, the kernel module accepts IPv6 packets from the outside
+world whose destination address matches the 64-bit prefix configured for the
+tunnel.  It then decrypts the 64-bit suffix, and verifies that the embedded
+address is well-formed, and within the range of whitelisted IPv4 subnets
+that have been assigned to the tunnel.  If all goes well, the packet is wrapped
+in IPv4 proto-41, and forwarded to the matching endpoint.
+
+For packets traveling from the LAN toward the outside world, all of the
+same checks are performed using the source IPv4 and IPv6 addresses, ensuring
+that only well-formed addresses are able to pass.
+
+The upshot of embedding the (encrypted) IPv4 address within the IPv6 address
+is that the tunnel server does not need to maintain ANY state about which
+clients have established tunnels.  Thus, there's no need to ping endpoints
+to check for activity, and tunnels can just be abandoned without worrying
+about doing any cleanup.
+
+
+-- Encrypted Addresses? --
+
+Arguably the most unusual aspect of Stubl is that it generates its client
+addresses using a block cipher.  While this step is not strictly necessary,
+it does have some nice properties:
+
+  - Most private IPv4 networks were designed with the assumption that the
+    addresses would not be visible from the outside world.  This may or may
+    not have any real security significance, but it's best to err on the side
+    of caution by not leaking these addresses on purpose.
+
+  - The checks performed by the kernel module when decrypting addresses ensure
+    that only a small fraction (1 in 2^26) of addresses can ever possibly
+    result in the generation of an IPv4 tunnel packet on the LAN.  The
+    module's configured whitelist of IPv4 subnets can drop this fraction
+    by a few more orders of magnitude.  Thus, it is relatively infeasible
+    for an attacker to blindly scan the network for tunnel endpoints.
+
+  - The address generation algorithm makes multiple attempts to generate a
+    client address which has the RFC2373 Universal/Local bit set to 0.  This
+    means that a Stubl client's address is effectively indistinguishable from
+    a random RFC3041 "Privacy address."
+
+
+-- Firewalling --
+
+Beware that Stubl is absolutely NOT A FIREWALL.  It will happily pass any evil
+IPv6 packets to the clients behind it.  The configuration of an IPv6 firewall
+is beyond the scope of this document.
+
+
+-- Combining Stubl with sit --
+
+The tunnel server will need to have some sort of IPv6 upstream connectivity.
+Stubl has been designed to coexist with the real 'sit' module, and only
+scoops up proto-41 packets whose source IPv6 address matches the configured
+tunnel prefix.  This means it should be possible to set up a Stubl server
+which itself gets connectivity through a configured tunnel, 6to4, etc.
+
+If you do this, you'll have to be careful to filter any proto-41 packets
+from the Internet with a spoofed source address within the range of Stubl's
+whitelisted subnets.
+
+
+-- Comparison with ISATAP --
+
+ISATAP is another mechanism for running IPv6 on top of a unicast IPv4 local
+network.  The advantages of Stubl over ISATAP include:
+
+  - You only need to mess with one server to get started.
+  - Never leaks your internal IPv4 addresses.
+  - No special client-side software needed.
+  - Easier to secure, since all traffic runs through one server.
+
+However, ISATAP is a much better approximation of a native IPv6 network,
+and has the following advantages over Stubl:
+
+  - Multiple addresses per node.
+  - Proper neighbor discovery and link-local addresses.
+  - Better scalability, especially when talking between clients.
+
+In general, the best long-term solution is to deploy native IPv6 over Ethernet.
+Stubl will provide a quick & easy way for clients to see the Dancing Turtle,
+but it is inherently centralized, which implies a single point of failure, and
+limited scalability.
+
+
+
+-- How to actually set up a tunnel server --
+
+0. Requirements:
+  - A Linux box
+  - A working IPv6 connection, with an entire /64 subnet routed directly to
+    the Linux box.
+  - Python 2.4+
+  - PyCrypto ( http://www.amk.ca/python/code/crypto.html )
+
+1. Install the 'stubl' kernel module.
+
+  cd kernel-module/linux-<version>
+  make
+  sudo make install
+
+2. Create /etc/stubl.conf
+
+  - Copy ./webserver/stubl.conf.example to /etc/stubl.conf
+  - You may want to tweak permissions so no one else can read the file.
+  - Generate a secret key using ./webserver/generate_tunnel_key.py
+  - Edit the config to your liking.
+
+3. Run this script, to reload the module and initialize the tunnel interface:
+
+  sudo ./init_tunnel.sh
+
+4. Run the web server, to provide setup instructions to other computers
+   on the LAN.
+
+  cd webserver
+  ./stubl_http.py
+
+

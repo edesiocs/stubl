@@ -1,0 +1,112 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" 
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html>
+<head>
+<title>Stubl IPv6</title>
+<style type="text/css">
+body {
+  font-family: sans-serif;
+}
+a {
+  color: blue;
+}
+h1 {
+  font-size: x-large;
+}
+h2 {
+  font-size: large;
+  margin-top: 30pt;
+}
+h3 {
+  font-size: small;
+  margin-left: 20pt;
+}
+pre {
+  margin-left: 20pt;
+  margin-right: 20pt;
+  font-size: medium;
+  padding: 5pt;
+  border: thin dashed black;
+}
+.up {
+  background-color: #DDFFDD;
+}
+.down {
+  background-color: #DDDDFF;
+}
+.ipinfo {
+  font-weight: bold;
+  font-family: monospace;
+  font-size: large;
+}
+.topmenu {
+  background-color: #FFEECC;
+  margin-top: 20pt;
+  padding: 5pt;
+}
+</style>
+</head>
+<body>
+<h1>Stubl :: IPv6 Stateless Tunnel Broker for LANs</h1>
+
+<p>You are using <span class="ipinfo">%(client_family)s</span> from
+<span class="ipinfo">%(client_addr)s</span></p>
+
+<div class="topmenu">
+<p>This page provides setup instructions for a point-to-point IPv6 tunnel.
+Please select your operating system:</p>
+<ul>
+  <li><a href="#linux">Linux</a></li>
+  <li><a href="#macosx">Mac OS X</a></li>
+  <li><a href="#windows">Windows</a></li>
+</ul>
+</div>
+
+<a name="linux"></a>
+<h2>Linux</h2>
+<h3>Create a tunnel:</h3>
+<pre class="up">
+sudo ip tunnel add stubl6 mode sit local %(client_ip4)s remote %(server_ip4)s ttl 64
+sudo ip link set stubl6 up
+sudo ip addr add %(client_ip6)s dev stubl6
+sudo ip -6 route add ::/0 dev stubl6
+</pre>
+<h3>Destroy a tunnel:</h3>
+<pre class="down">
+sudo ip tunnel del stubl6
+</pre>
+
+<a name="macosx"></a>
+<h2>Mac OS X</h2>
+<h3>Create a tunnel:</h3>
+<pre class="up">
+sudo ifconfig gif0 tunnel %(client_ip4)s %(server_ip4)s
+sudo ifconfig gif0 up
+sudo ifconfig gif0 inet6 add %(client_ip6)s/128
+sudo route add -inet6 default -interface gif0
+</pre>
+<h3>Destroy a tunnel:</h3>
+<pre class="down">
+sudo ifconfig gif0 deletetunnel
+sudo ifconfig gif0 down
+sudo ifconfig gif0 inet6 delete $(ifconfig gif0 | sed -nE 's/.*inet6 ([0-9a-f:]+) .*/\1/p')
+sudo route delete -inet6 default -interface gif0
+</pre>
+
+<a name="windows"></a>
+<h2>Windows</h2>
+<h3>Create a tunnel:</h3>
+<pre class="up">
+netsh interface ipv6 install
+netsh interface ipv6 add v6v4tunnel "stubl6" %(client_ip4)s %(server_ip4)s
+netsh interface ipv6 add address "stubl6" %(client_ip6)s
+netsh interface ipv6 add route ::/0 interface="stubl6"
+</pre>
+<h3>Destroy a tunnel:</h3>
+<pre class="down">
+netsh interface ipv6 delete interface stubl6
+</pre>
+<br/>
+
+</body>
+</html>

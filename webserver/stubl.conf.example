@@ -1,0 +1,14 @@
+# This file is both executed as a shell script, and parsed from Python.
+# Don't stray too much from this A="B" formatting.
+
+# 64-bit IPv6 prefix used for all tunnel endpoints.
+PREFIX="2001:db8:0:1234"
+
+# Key for encrypting addresses, from generate_tunnel_key.py
+KEY="00000000000000000000000000000000"
+
+# The IPv4 address of this tunnel server.
+SERVER_IPV4="0.1.2.3"
+
+# Space-separated list of IPv4 subnets to allow as tunnel endpoints.
+SUBNETS="172.16.0.0/12 192.168.1.0/24"
