@@ -170,6 +170,13 @@ class IPv6TunnelHTTPServerTest(unittest.TestCase):
     # Quite the stderr log output.
     handler.efile = StringIO()
 
+    class FakeHeaders(object):
+      def __init__(self):
+        self.dict = {}
+      def getheader(self, h):
+        return self.dict[h]
+    handler.headers = FakeHeaders()
+
     def FakeLogMessage(format, *args):
       # Copied from BaseHTTPRequestHandler.
       handler.efile.write("%s - - [%s] %s\n" %
@@ -244,6 +251,16 @@ class IPv6TunnelHTTPServerTest(unittest.TestCase):
                                   "GET %s HTTP/1.0\r\n\r\n" % uri)
     handler.handle()
     self.assertHTTPReturnCode(403, handler.wfile.getvalue())
+
+  def testUserIP_Proxy(self):
+    handler = self.GetTestHandler(kValidIPv6, "GET / HTTP/1.0\r\n\r\n")
+    handler.headers.dict["x-forwarded-for"] = kValidIPv4 + ",foo,bar"
+    self.assertEqual(handler.UserIP(), (kValidIPv4, True))
+
+  def testUserIP_NoProxy(self):
+    handler = self.GetTestHandler(kValidIPv6, "GET / HTTP/1.0\r\n\r\n")
+    handler.headers.dict["x-forwarded-for"] = None
+    self.assertEqual(handler.UserIP(), (kValidIPv6, False))
 
 
 class ConfigFileParserTest(unittest.TestCase):

@@ -258,8 +258,8 @@ class MyHandler(BaseHTTPRequestHandler):
 
   def GetRoot(self):
     """Handle "GET /" requests."""
-
-    valid = ValidTunnelAddress(self.client_address[0])
+    address, proxied = self.UserIP()
+    valid = ValidTunnelAddress(address)
     if not valid.IsValid():
       raise Error("invalid tunnel endpoint")
 
@@ -277,10 +277,14 @@ class MyHandler(BaseHTTPRequestHandler):
     template_args = {
         'client_family': valid.FamilyName(),
         'client_addr': valid.ToString(),
+        'proxied': "",
         'server_ip4': config.server_ipv4,
         'client_ip4': v4_addr,
         'client_ip6': v6_addr,
     }
+
+    if proxied:
+      template_args["proxied"] = " (via proxy)"
 
     self.wfile.write(self.template % template_args)
 
@@ -299,7 +303,7 @@ class MyHandler(BaseHTTPRequestHandler):
     """
     address = self.path[len("/ip4z/"):]
     if not address:
-      address = self.client_address[0]
+      address = self.UserIP()[0]
 
     valid = ValidTunnelAddress(address)
     if not valid.IsValid():
@@ -330,7 +334,7 @@ class MyHandler(BaseHTTPRequestHandler):
     """
     address = self.path[len("/ip6z/"):]
     if not address:
-      address = self.client_address[0]
+      address = self.UserIP()[0]
 
     valid = ValidTunnelAddress(address)
     if not valid.IsValid():
@@ -346,6 +350,27 @@ class MyHandler(BaseHTTPRequestHandler):
     self.end_headers()
     self.wfile.write(response)
     return
+
+  def UserIP(self):
+    """Get the user's IP Address.
+
+    If an X-Forwarded-For header exists, then return the first address
+    contained within it.  Otherwise, return the direct-connected
+    client's address.
+
+    Second return value is a boolean, indicating whether the request went
+    through a proxy.
+
+    Proxied addresses are not trustworthy, and may not be well-formed, so the
+    direct-connected address should be validated before using this function.
+    """
+    address = self.headers.getheader('x-forwarded-for')
+    if address:
+      address = address.split(',', 1)[0]
+    if address:
+      return address, True
+    else:
+      return self.client_address[0], False
 
 
 def main():
