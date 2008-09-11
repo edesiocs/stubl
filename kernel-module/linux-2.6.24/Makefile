@@ -2,17 +2,18 @@ obj-m    := stubl.o
 KDIR    := /lib/modules/$(shell uname -r)/build
 PWD    := $(shell pwd)
 
-MODULE_NAME := stubl.ko
-INSTALL_PATH := /lib/modules/$(shell uname -r)/kernel/net/ipv6
+all:
+	$(MAKE) -C $(KDIR) M=$(PWD)
 
-default:
-	$(MAKE) -C $(KDIR) SUBDIRS=$(PWD) modules
+modules clean:
+	$(MAKE) -C $(KDIR) M=$(PWD) $@
 
-install:
-	install -D -m 644 $(MODULE_NAME) $(INSTALL_PATH)/$(MODULE_NAME)
-	/sbin/depmod -a
+install modules_install:
+	$(MAKE) -C $(KDIR) M=$(PWD) modules_install
+	-/sbin/depmod -a || :;
 
+INSTALL_PATH := /lib/modules/$(shell uname -r)/extra
 uninstall:
-	rm -f $(INSTALL_PATH)/$(MODULE_NAME)
+	rm -f $(INSTALL_PATH)/stubl.ko
 	rmdir -p --ignore-fail-on-non-empty $(INSTALL_PATH)
-	/sbin/depmod -a
+	-/sbin/depmod -a
