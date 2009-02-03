@@ -30,6 +30,6 @@ echo $SUBNETS > /sys/module/stubl/parameters/allowed_subnets || exit
 
 echo "Activating link"
 ip -6 addr add $PREFIX::1/64 dev stubl0
-ip link set stubl0 up mtu 1420
+ip link set stubl0 up mtu 1400
 
 echo "Done"
