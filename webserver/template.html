@@ -68,6 +68,7 @@ Please select your operating system:</p>
 <pre class="up">
 sudo ip tunnel add stubl6 mode sit local %(client_ip4)s remote %(server_ip4)s ttl 64
 sudo ip link set stubl6 up
+sudo ip link set stubl6 mtu 1400
 sudo ip addr add %(client_ip6)s dev stubl6
 sudo ip -6 route add ::/0 dev stubl6
 </pre>
@@ -82,6 +83,7 @@ sudo ip tunnel del stubl6
 <pre class="up">
 sudo ifconfig gif0 tunnel %(client_ip4)s %(server_ip4)s
 sudo ifconfig gif0 up
+sudo ifconfig gif0 mtu 1400
 sudo ifconfig gif0 inet6 add %(client_ip6)s/128
 sudo route add -inet6 default -interface gif0
 </pre>
@@ -99,6 +101,7 @@ sudo route delete -inet6 default -interface gif0
 <pre class="up">
 netsh interface ipv6 install
 netsh interface ipv6 add v6v4tunnel "stubl6" %(client_ip4)s %(server_ip4)s
+netsh interface ipv6 set interface "stubl6" mtu=1400
 netsh interface ipv6 add address "stubl6" %(client_ip6)s
 netsh interface ipv6 add route ::/0 interface="stubl6"
 </pre>
