@@ -790,7 +790,7 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 						.tos = RT_TOS(tos) } },
 				    .oif = tunnel->parms.link,
 				    .proto = IPPROTO_IPV6 };
-		if (ip_route_output_key(dev_net(dev), &rt, &fl)) {
+		if (ip_route_output_key(&init_net, &rt, &fl)) {
 			stats->tx_carrier_errors++;
 			goto tx_error_icmp;
 		}
